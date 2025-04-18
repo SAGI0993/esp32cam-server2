@@ -1,28 +1,25 @@
-# main.py (сервер)
-from flask import Flask, request, jsonify
+from flask import Flask, request
+import cv2
+import numpy as np
+import pytesseract
 
 app = Flask(__name__)
 
-ALLOWED_PLATES = ["MED", "ARU", "SAG", "XAN"]
-ADMIN_PLATE = "ADMIN"
-cars_in = 0
-max_cars = 5
+@app.route("/upload_image", methods=["POST"])
+def upload_image():
+    image = request.data
+    nparr = np.frombuffer(image, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-@app.route("/check_plate", methods=["POST"])
-def check_plate():
-    global cars_in
-    plate = request.json.get("plate", "").upper()
+    text = pytesseract.image_to_string(img)
+    print("Распознанный текст:", text)
 
-    if plate in ALLOWED_PLATES and cars_in < max_cars:
-        cars_in += 1
-        return jsonify({"access": True})
-    elif plate == ADMIN_PLATE:
-        return jsonify({"access": True})
-    return jsonify({"access": False})
-
-@app.route("/")
-def index():
-    return "ESP32-CAM Parking Server"
+    # Фильтруем, оставляя только номера, например, "SAG"
+    known_plates = ["SAG", "MED", "ARU", "XAN", "ADMIN"]
+    for plate in known_plates:
+        if plate in text:
+            return plate
+    return "UNKNOWN"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
