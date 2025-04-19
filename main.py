@@ -1,39 +1,44 @@
-from flask import Flask, request, render_template
-import numpy as np
+from flask import Flask, request, jsonify
 import cv2
+import numpy as np
+import pytesseract
+from io import BytesIO
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Настройка пути к Tesseract (если необходимо для pytesseract)
+# Убедись, что Tesseract установлен на твоем сервере.
+# На Windows, например, путь может быть: "C:/Program Files/Tesseract-OCR/tesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
-@app.route('/upload_image', methods=['POST'])
-def upload_image():
+@app.route('/receive_image', methods=['POST'])
+def receive_image():
     try:
-        image = request.data
-        print(f"[INFO] Получено изображение, размер: {len(image)} байт")
+        # Получаем изображение из запроса
+        file = request.files['image']
+        img_bytes = file.read()
 
-        nparr = np.frombuffer(image, np.uint8)
-        print("[INFO] Преобразовано в numpy array")
+        # Преобразуем байты в изображение
+        np_arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None:
-            print("[ERROR] OpenCV не смог декодировать изображение")
-            return "Ошибка декодирования изображения", 500
+        # Преобразуем изображение в черно-белое для улучшения OCR
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        print(f"[INFO] Изображение успешно декодировано, размер: {img.shape}")
+        # Используем pytesseract для распознавания текста на изображении
+        text = pytesseract.image_to_string(gray, config='--psm 6')
 
-        # Сохраняем для отладки
-        cv2.imwrite("received.jpg", img)
-        print("[INFO] Изображение сохранено как received.jpg")
+        # Обрабатываем полученный текст
+        text = text.strip().upper()  # Убираем пробелы и делаем текст верхним регистром
 
-        # Здесь можно вставить обработку (распознавание и т.д.)
-        return "OK"
+        print(f"Распознанный номер: {text}")
+
+        # Отправляем распознанный номер обратно на ESP32
+        return jsonify({'plate': text})
 
     except Exception as e:
-        print(f"[EXCEPTION] Произошла ошибка: {e}")
-        return "ERROR", 500
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=5000)
