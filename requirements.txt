@@ -1,5 +1,4 @@
 flask
 opencv-python-headless
-pytesseract
 numpy
-
+pytesseract
