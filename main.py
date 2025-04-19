@@ -1,42 +1,39 @@
-from flask import Flask, request
+from flask import Flask, request, render_template
 import numpy as np
 import cv2
-import pytesseract
 
 app = Flask(__name__)
 
-# Страница по умолчанию
-@app.route("/")
-def home():
-    return "ESP32-CAM Parking Server"
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# Обработка POST-запроса с изображением
-@app.route("/upload_image", methods=["POST"])
+@app.route('/upload_image', methods=['POST'])
 def upload_image():
     try:
-        # Получаем изображение в виде байтов
         image = request.data
-        nparr = np.frombuffer(image, np.uint8)
+        print(f"[INFO] Получено изображение, размер: {len(image)} байт")
 
-        # Преобразуем в изображение OpenCV
+        nparr = np.frombuffer(image, np.uint8)
+        print("[INFO] Преобразовано в numpy array")
+
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
-            return "INVALID_IMAGE", 400
+            print("[ERROR] OpenCV не смог декодировать изображение")
+            return "Ошибка декодирования изображения", 500
 
-        # Распознавание текста
-        text = pytesseract.image_to_string(img).upper()
-        print("Распознанный текст:", text)
+        print(f"[INFO] Изображение успешно декодировано, размер: {img.shape}")
 
-        # Поиск известных номеров
-        known_plates = ["SAG", "MED", "ARU", "XAN", "ADMIN"]
-        for plate in known_plates:
-            if plate in text:
-                return plate, 200
+        # Сохраняем для отладки
+        cv2.imwrite("received.jpg", img)
+        print("[INFO] Изображение сохранено как received.jpg")
 
-        return "UNKNOWN", 200
+        # Здесь можно вставить обработку (распознавание и т.д.)
+        return "OK"
+
     except Exception as e:
-        print("Ошибка при обработке:", e)
+        print(f"[EXCEPTION] Произошла ошибка: {e}")
         return "ERROR", 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
