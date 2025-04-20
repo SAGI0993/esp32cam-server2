@@ -1,7 +1,7 @@
 Flask
 opencv-python
 numpy
-
+easyocr
 gunicorn
 pillow
 
