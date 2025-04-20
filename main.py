@@ -1,44 +1,35 @@
 from flask import Flask, request, jsonify
-import cv2
-import numpy as np
-import pytesseract
-from io import BytesIO
+from PIL import Image
+import io
+import os
 
 app = Flask(__name__)
 
-# Настройка пути к Tesseract (если необходимо для pytesseract)
-# Убедись, что Tesseract установлен на твоем сервере.
-# На Windows, например, путь может быть: "C:/Program Files/Tesseract-OCR/tesseract.exe"
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+@app.route("/")
+def index():
+    return "ESP32-CAM Flask Server is running!", 200
 
-@app.route('/receive_image', methods=['POST'])
+@app.route("/receive_image", methods=["POST"])
 def receive_image():
     try:
-        # Получаем изображение из запроса
-        file = request.files['image']
-        img_bytes = file.read()
+        # Получаем "сырые" данные запроса
+        raw_data = request.get_data()
+        
+        # Проверяем, есть ли вообще данные
+        if not raw_data or len(raw_data) < 100:
+            return jsonify({"error": "No image data received"}), 400
 
         # Преобразуем байты в изображение
-        np_arr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        image = Image.open(io.BytesIO(raw_data))
+        
+        # Сохраняем файл с уникальным именем (по желанию можно просто "received.jpg")
+        save_path = "received.jpg"
+        image.save(save_path)
 
-        # Преобразуем изображение в черно-белое для улучшения OCR
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # Используем pytesseract для распознавания текста на изображении
-        text = pytesseract.image_to_string(gray, config='--psm 6')
-
-        # Обрабатываем полученный текст
-        text = text.strip().upper()  # Убираем пробелы и делаем текст верхним регистром
-
-        print(f"Распознанный номер: {text}")
-
-        # Отправляем распознанный номер обратно на ESP32
-        return jsonify({'plate': text})
-
+        return jsonify({"result": "Image received and saved!"}), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))  # Render использует переменную PORT
+    app.run(host="0.0.0.0", port=port)
