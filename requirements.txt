@@ -3,3 +3,4 @@ opencv-python
 numpy
 pytesseract
 gunicorn
+pillow
