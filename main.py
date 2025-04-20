@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from PIL import Image
-import pytesseract
+import easyocr
 import cv2
 import io
 import numpy as np  # Добавлен импорт numpy
@@ -8,8 +8,8 @@ import os
 
 app = Flask(__name__)
 
-# Настройка пути к Tesseract (если необходимо для pytesseract)
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'  # Убедись, что tesseract установлен
+# Инициализируем EasyOCR
+reader = easyocr.Reader(['en'], gpu=False)  # Можно изменить на ['en', 'ru'] для поддержки русского языка
 
 @app.route("/")
 def index():
@@ -34,11 +34,14 @@ def receive_image():
         # Преобразуем изображение в черно-белое для улучшения OCR
         gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
 
-        # Улучшаем изображение для Tesseract
+        # Улучшаем изображение для OCR
         _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
 
-        # Распознаем текст с изображения
-        text = pytesseract.image_to_string(thresh, config='--psm 8').strip().upper()
+        # Распознаем текст с изображения с помощью EasyOCR
+        result = reader.readtext(thresh)
+
+        # Извлекаем распознанный текст (если есть)
+        text = ' '.join([r[1] for r in result]).strip().upper()
 
         # Сохраняем изображение с распознанным номером (опционально)
         filename = "received_with_plate.jpg"
