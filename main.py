@@ -3,6 +3,7 @@ from PIL import Image
 import pytesseract
 import cv2
 import io
+import numpy as np  # Добавлен импорт numpy
 import os
 
 app = Flask(__name__)
