@@ -4,4 +4,4 @@ numpy
 
 gunicorn
 pillow
-easyocr
+
